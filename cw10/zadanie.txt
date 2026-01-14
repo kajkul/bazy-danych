@@ -1,0 +1,124 @@
+1. 
+CREATE VIEW zad1 AS
+SELECT 
+    e.FIRST_NAME,
+    e.LAST_NAME,
+    YEAR(o.ORDER_DATE) AS year,
+    MONTH(o.ORDER_DATE) AS month,
+    SUM(op.AMOUNT * op.SELL_PRICE),
+    COUNT(op. POSITION_ID)
+FROM 
+    EMPLOYEE AS e
+    INNER JOIN `ORDER` AS o ON e.EMPLOYEE_NAME = o.EMPLOYEE_ID
+    INNER JOIN ORDER_POSITION AS op ON o.ORDER_ID = op.ORDER_ID
+    INNER JOIN CLIENT AS c ON o.CLIENT_ID = c.CLIENT_ID
+    INNER JOIN CLIENT_ADDRESS AS ca ON c.CLIENT_ID = ca.CLIENT_ID
+    INNER JOIN ORDER_STATUS AS os ON o.ORDER_STATUS = os.STATUS_ID
+WHERE 
+    os.STATUS_NAME NOT IN ('Anulowane', 'Zwrocone')
+    AND LOWER(ca.CITY) != 'lodz'
+GROUP BY 
+    e.EMPLOYEE_NAME,
+    e.FIRST_NAME,
+    e.LAST_NAME,
+    YEAR(o.ORDER_DATE),
+    MONTH(o.ORDER_DATE)
+    ;
+
+2.
+SELECT 
+    YEAR(o.ORDER_DATE) AS year,
+    MONTH(o.ORDER_DATE) AS month,
+    SUM(op.SELL_PRICE * op.AMOUNT) AS sum,
+    LAG(SUM(op.SELL_PRICE * op.AMOUNT), 1) OVER (
+        ORDER BY YEAR(o.ORDER_DATE), MONTH(o.ORDER_DATE)
+    ) AS last,
+    SUM(op.SELL_PRICE * op.AMOUNT) - LAG(SUM(op.SELL_PRICE * op.AMOUNT), 1) OVER (
+        ORDER BY YEAR(o.ORDER_DATE), MONTH(o.ORDER_DATE)
+    ) as diff
+FROM 
+    `ORDER` o
+    INNER JOIN ORDER_POSITION op ON op.ORDER_ID = o.ORDER_ID
+    INNER JOIN PRODUCT p ON op.PRODUCT_ID = p. PRODUCT_ID
+    INNER JOIN CATEGORY c ON p. CATEGORY_ID = c.CATEGORY_ID
+WHERE 
+    LOWER(c.CATEGORY_NAME) != 'elektronika'
+GROUP BY 
+    YEAR(o.ORDER_DATE),
+    MONTH(o.ORDER_DATE)
+ORDER BY 
+    year, month
+    ;
+
+3.
+SELECT 
+    YEAR(o.ORDER_DATE) AS year,
+    ca.CITY AS city,
+    SUM(op.SELL_PRICE * op.AMOUNT) AS sum,
+    (
+        IFNULL(SUM(op.SELL_PRICE * op.AMOUNT), 0)
+        + 
+        IFNULL(LAG(SUM(op.SELL_PRICE * op.AMOUNT), 1) OVER (
+            ORDER BY YEAR(o.ORDER_DATE), ca.CITY
+        ), 0)
+        + 
+        IFNULL(LEAD(SUM(op.SELL_PRICE * op.AMOUNT), 1) OVER (
+            ORDER BY YEAR(o.ORDER_DATE), ca.CITY
+        ), 0)
+    ) / 3 as avg
+
+FROM 
+    CLIENT_ADDRESS ca
+    INNER JOIN `ORDER` o ON o.CLIENT_ID = ca.CLIENT_ID
+    INNER JOIN ORDER_POSITION op ON op.ORDER_ID = o.ORDER_ID
+GROUP BY 
+    YEAR(o.ORDER_DATE),
+    ca.CITY
+ORDER BY 
+    year, city
+    ;
+
+4.
+CREATE VIEW zad4 AS
+SELECT 
+    c.CATEGORY_NAME AS category,
+    YEAR(o.ORDER_DATE) AS year,
+    AVG(op.SELL_PRICE - p.PURCHASE_PRICE) AS avg
+FROM 
+    `ORDER` o
+    INNER JOIN ORDER_POSITION op ON o.ORDER_ID = op.ORDER_ID
+    INNER JOIN PRODUCT p ON op.PRODUCT_ID = p. PRODUCT_ID
+    INNER JOIN CATEGORY c ON p. CATEGORY_ID = c.CATEGORY_ID
+    INNER JOIN EMPLOYEE e ON o.EMPLOYEE_ID = e. EMPLOYEE_NAME
+    INNER JOIN JOB_POSITION jp ON e.JOB_POSITION_ID = jp.JOB_POSITION_ID
+WHERE 
+    jp.POSITION_NAME != 'Kierownik sprzedazy'
+GROUP BY 
+    c.CATEGORY_ID,
+    c.CATEGORY_NAME,
+    YEAR(o. ORDER_DATE)
+ORDER BY 
+    year, category
+    ;
+
+5.
+SELECT 
+    YEAR(o.ORDER_DATE) AS year,
+    MONTH(o.ORDER_DATE) AS month,
+    SUM(op.SELL_PRICE * op.AMOUNT) AS sum,
+    SUM(SUM(op.SELL_PRICE * op.AMOUNT)) OVER (
+        PARTITION BY YEAR(o.ORDER_DATE) 
+        ORDER BY MONTH(o. ORDER_DATE)
+    ) AS commulative
+FROM 
+    `ORDER` o
+    INNER JOIN ORDER_POSITION op ON o. ORDER_ID = op.ORDER_ID
+    INNER JOIN ORDER_STATUS os ON o.ORDER_STATUS = os.STATUS_ID
+WHERE 
+    STATUS_NAME != 'Anulowane'
+GROUP BY 
+    YEAR(o.ORDER_DATE),
+    MONTH(o.ORDER_DATE)
+ORDER BY 
+    year, month
+    ;
